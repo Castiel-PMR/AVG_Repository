@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AVG Graph</title>
+    <title>TradingView and Plotly Synchronized Graphs</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
@@ -11,44 +11,107 @@
             padding: 0;
             background-color: #1e1e1e;
             color: white;
-            height: 100vh;
-            width: 100vw;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            height: 100vh;
         }
-        #graph {
-            width: 100%;
-            height: 100%;
+        #tradingview-container, #graph {
+            width: 90%;
+            height: 45%;
         }
     </style>
 </head>
 <body>
-    <div id="graph"></div>
-    <script>
-        fetch('/data')
-            .then(response => response.json())
-            .then(data => {
-                var trace = {
-                    x: data.timestamps,
-                    y: data.avg_values,
-                    type: 'scatter',
-                    mode: 'lines',
-                    line: { color: 'red' }
-                };
-                
-                var layout = {
-                    title: 'AVG over Time',
-                    paper_bgcolor: '#1e1e1e',
-                    plot_bgcolor: '#1e1e1e',
-                    font: { color: 'white' },
-                    xaxis: { title: 'Time' },
-                    yaxis: { title: 'AVG' },
-                    autosize: true
-                };
-                
-                Plotly.newPlot('graph', [trace], layout);
+    <!-- TradingView Widget BEGIN -->
+    <div id="tradingview-container"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        function createTradingViewWidget() {
+            return new TradingView.widget({
+                "container_id": "tradingview-container",
+                "autosize": true,
+                "symbol": "BINANCE:BTCUSDT",
+                "interval": "15",
+                "theme": "dark",
+                "style": "1",
+                "timezone": "Etc/UTC",
+                "withdateranges": true,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": true,
+                "save_image": false,
+                "hideideas": true,
+                "studies": ["MASimple@tv-basicstudies"],
+                "locale": "en",
+                "onready": function() {
+                    const widget = this;
+                    widget.chart().onVisibleRangeChanged().subscribe(null, function(range) {
+                        synchronizePlotlyWithTradingView(range.from, range.to);
+                    });
+                }
             });
+        }
+
+        function synchronizePlotlyWithTradingView(from, to) {
+            fetch(`/data?from=${new Date(from * 1000).toISOString()}&to=${new Date(to * 1000).toISOString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    const update = {
+                        x: [data.timestamps],
+                        y: [data.avg_values]
+                    };
+                    Plotly.relayout('graph', {
+                        'xaxis.range': [new Date(from * 1000), new Date(to * 1000)]
+                    });
+                    Plotly.update('graph', update);
+                });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const tvWidget = createTradingViewWidget();
+
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    var trace = {
+                        x: data.timestamps,
+                        y: data.avg_values,
+                        type: 'scatter',
+                        mode: 'lines',
+                        line: { color: 'red' }
+                    };
+
+                    var layout = {
+                        title: 'AVG over Time',
+                        paper_bgcolor: '#1e1e1e',
+                        plot_bgcolor: '#1e1e1e',
+                        font: { color: 'white' },
+                        xaxis: { title: 'Time' },
+                        yaxis: { title: 'AVG' },
+                        autosize: true
+                    };
+
+                    Plotly.newPlot('graph', [trace], layout);
+
+                    var graphDiv = document.getElementById('graph');
+
+                    graphDiv.on('plotly_relayout', function(eventdata) {
+                        if (eventdata['xaxis.range[0]'] && eventdata['xaxis.range[1]']) {
+                            var start = new Date(eventdata['xaxis.range[0]']).getTime() / 1000;
+                            var end = new Date(eventdata['xaxis.range[1]']).getTime() / 1000;
+                            tvWidget.chart().setVisibleRange({
+                                from: start,
+                                to: end
+                            });
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        });
     </script>
+    <!-- Plotly Graph END -->
+    <div id="graph"></div>
 </body>
 </html>
