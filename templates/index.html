@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVG Graph</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e1e;
+            color: white;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="graph"></div>
+    <script>
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                var trace = {
+                    x: data.timestamps,
+                    y: data.avg_values,
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: 'red' }
+                };
+                
+                var layout = {
+                    title: 'AVG over Time',
+                    paper_bgcolor: '#1e1e1e',
+                    plot_bgcolor: '#1e1e1e',
+                    font: { color: 'white' },
+                    xaxis: { title: 'Time' },
+                    yaxis: { title: 'AVG' },
+                    autosize: true
+                };
+                
+                Plotly.newPlot('graph', [trace], layout);
+            });
+    </script>
+</body>
+</html>
