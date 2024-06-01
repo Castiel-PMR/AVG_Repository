@@ -11,6 +11,19 @@ app = Flask(__name__)
 
 CSV_FILE = 'data.csv'
 
+def get_data():
+    timestamps = []
+    avg_values = []
+    if not os.path.exists(CSV_FILE):
+        return timestamps, avg_values
+    with open(CSV_FILE, 'r') as file:
+        reader = csv.reader(file)
+        next(reader)  # Пропустить заголовок
+        for row in reader:
+            timestamps.append(row[0])
+            avg_values.append(float(row[1]))
+    return timestamps, avg_values
+
 def get_latest_data():
     if not os.path.exists(CSV_FILE):
         return "No data available."
